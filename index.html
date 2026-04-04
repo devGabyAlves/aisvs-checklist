@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Controles AISVS em Portugues</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div class="header-top">
+          <h1>Controles OWASP AISVS</h1>
+          <button id="themeToggle" type="button" aria-label="Alternar tema">Modo escuro</button>
+        </div>
+      </header>
+
+      <section class="stats" id="stats">
+        <article class="stat-card">
+          <h2>Total</h2>
+          <strong id="totalCount">-</strong>
+        </article>
+        <article class="stat-card">
+          <h2>Nível 1</h2>
+          <strong id="l1Count">-</strong>
+        </article>
+        <article class="stat-card">
+          <h2>Nível 2</h2>
+          <strong id="l2Count">-</strong>
+        </article>
+        <article class="stat-card">
+          <h2>Nível 3</h2>
+          <strong id="l3Count">-</strong>
+        </article>
+      </section>
+
+      <section class="filters">
+        <div class="level-buttons" id="levelButtons">
+          <button data-level="all" class="active">Todos</button>
+          <button data-level="1">Nível 1</button>
+          <button data-level="2">Nível 2</button>
+          <button data-level="3">Nível 3</button>
+        </div>
+
+        <label>
+          Buscar controle
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="Ex.: autenticacao, injeção de prompt, C9.4..."
+          />
+        </label>
+
+        <label>
+          Capítulo
+          <select id="chapterSelect">
+            <option value="all">Todos os capítulos</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="status">
+        <p id="statusText">Carregando controles oficiais do AISVS...</p>
+      </section>
+
+      <section class="results">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nível</th>
+              <th>Capítulo</th>
+              <th>Seção</th>
+              <th>Controle</th>
+            </tr>
+          </thead>
+          <tbody id="controlsTableBody"></tbody>
+        </table>
+      </section>
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
