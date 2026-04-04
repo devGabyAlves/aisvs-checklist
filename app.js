@@ -50,13 +50,33 @@ const refs = {
   l3Count: document.getElementById("l3Count"),
 };
 
+function getStoredTheme() {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredTheme(theme) {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    // Ignore storage errors in restrictive browser modes.
+  }
+}
+
 function getPreferredTheme() {
-  const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+  const savedTheme = getStoredTheme();
   if (savedTheme === "light" || savedTheme === "dark") {
     return savedTheme;
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  if (typeof window.matchMedia === "function") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  return "light";
 }
 
 function applyTheme(theme) {
@@ -70,13 +90,13 @@ function setupThemeToggle() {
   refs.themeToggle.addEventListener("click", () => {
     const nextTheme = refs.root.dataset.theme === "dark" ? "light" : "dark";
     applyTheme(nextTheme);
-    localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    setStoredTheme(nextTheme);
   });
 }
 
 function sanitizeDescription(description) {
   return description
-    .replaceAll("**", "")
+    .replace(/\*\*/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -158,11 +178,11 @@ function renderTable(controls) {
     .map(
       (control) => `
       <tr>
-        <td><code>${control.id}</code></td>
-        <td><span class="tag level-${control.level}">Nível ${control.level}</span></td>
-        <td>${control.chapter}</td>
-        <td>${control.section}</td>
-        <td>${control.description}</td>
+        <td data-label="ID"><code>${control.id}</code></td>
+        <td data-label="Nível"><span class="tag level-${control.level}">Nível ${control.level}</span></td>
+        <td data-label="Capítulo">${control.chapter}</td>
+        <td data-label="Seção">${control.section}</td>
+        <td data-label="Controle">${control.description}</td>
       </tr>
     `,
     )
