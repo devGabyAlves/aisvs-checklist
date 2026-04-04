@@ -7,7 +7,5 @@ Este projeto consome os capítulos oficiais do AISVS 1.0 e exibe os controles em
 
 ## Imagem da interface
 
-```md
 ![Preview da página](./aisvs.png)
-```
 
