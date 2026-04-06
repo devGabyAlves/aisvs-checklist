@@ -10,39 +10,55 @@
     <main class="container">
       <header class="header">
         <div class="header-top">
-          <h1>Controles OWASP AISVS</h1>
-          <button id="themeToggle" type="button" aria-label="Alternar tema">Modo escuro</button>
+          <h1 id="pageTitle">Controles OWASP AISVS</h1>
+          <div class="top-actions">
+            <label for="languageSelect" class="language-label" id="languageLabel">Idioma</label>
+            <select id="languageSelect" aria-label="Selecionar idioma">
+              <option value="pt">PT</option>
+              <option value="en">EN</option>
+            </select>
+            <button id="themeToggle" type="button" aria-label="Alternar tema">Modo escuro</button>
+          </div>
         </div>
+        <p id="headerIntro">
+          Explore os controles do padrão
+          <a href="https://github.com/OWASP/AISVS" target="_blank" rel="noreferrer">AISVS 1.0</a>
+          em uma experiência leve e sofisticada, com filtros por níveis de verificação (1, 2 e
+          3), busca e capítulos.
+        </p>
+        <p class="header-note" id="headerNote">
+          Os textos dos controles são exibidos no idioma oficial do padrão (inglês).
+        </p>
       </header>
 
       <section class="stats" id="stats">
         <article class="stat-card">
-          <h2>Total</h2>
+          <h2 id="totalLabel">Total</h2>
           <strong id="totalCount">-</strong>
         </article>
         <article class="stat-card">
-          <h2>Nível 1</h2>
+          <h2 id="level1Label">Nível 1</h2>
           <strong id="l1Count">-</strong>
         </article>
         <article class="stat-card">
-          <h2>Nível 2</h2>
+          <h2 id="level2Label">Nível 2</h2>
           <strong id="l2Count">-</strong>
         </article>
         <article class="stat-card">
-          <h2>Nível 3</h2>
+          <h2 id="level3Label">Nível 3</h2>
           <strong id="l3Count">-</strong>
         </article>
       </section>
 
       <section class="filters">
         <div class="level-buttons" id="levelButtons">
-          <button data-level="all" class="active">Todos</button>
-          <button data-level="1">Nível 1</button>
-          <button data-level="2">Nível 2</button>
-          <button data-level="3">Nível 3</button>
+          <button data-level="all" class="active" id="btnAll">Todos</button>
+          <button data-level="1" id="btnL1">Nível 1</button>
+          <button data-level="2" id="btnL2">Nível 2</button>
+          <button data-level="3" id="btnL3">Nível 3</button>
         </div>
 
-        <label>
+        <label id="searchLabel">
           Buscar controle
           <input
             id="searchInput"
@@ -51,10 +67,10 @@
           />
         </label>
 
-        <label>
+        <label id="chapterLabel">
           Capítulo
           <select id="chapterSelect">
-            <option value="all">Todos os capítulos</option>
+            <option value="all" id="allChaptersOption">Todos os capítulos</option>
           </select>
         </label>
       </section>
@@ -68,10 +84,10 @@
           <thead>
             <tr>
               <th>ID</th>
-              <th>Nível</th>
-              <th>Capítulo</th>
-              <th>Seção</th>
-              <th>Controle</th>
+              <th id="thLevel">Nível</th>
+              <th id="thChapter">Capítulo</th>
+              <th id="thSection">Seção</th>
+              <th id="thControl">Controle</th>
             </tr>
           </thead>
           <tbody id="controlsTableBody"></tbody>
