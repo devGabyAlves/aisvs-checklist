@@ -49,6 +49,24 @@ const I18N = {
     thControl: "Descrição do controle",
     implementedLabel: "Implementados",
     pendingLabel: "Pendentes",
+    downloadPdf: "Baixar PDF",
+    downloadingPdf: "Gerando PDF...",
+    pdfSuccess: "PDF gerado com sucesso.",
+    pdfNoData: "Nenhum resultado para exportar em PDF.",
+    pdfLibError: "Não foi possível carregar a biblioteca de PDF.",
+    reportTitle: "Relatório de Checklist AISVS",
+    reportDateLabel: "Data",
+    reportFiltersLabel: "Filtros aplicados",
+    reportSearchLabel: "Busca",
+    reportChapterLabel: "Capítulo",
+    reportLevelLabel: "Nível",
+    reportSummaryLabel: "Resumo",
+    reportImplementedLabel: "Implementados",
+    reportPendingLabel: "Pendentes",
+    reportStatusLabel: "Status",
+    reportDescriptionLabel: "Descrição",
+    implementedStatus: "Implementado",
+    pendingStatus: "Pendente",
     themeDark: "Modo escuro",
     themeLight: "Modo claro",
     statusLoadingList: "Carregando lista de capítulos do AISVS...",
@@ -81,6 +99,24 @@ const I18N = {
     thControl: "Control",
     implementedLabel: "Implemented",
     pendingLabel: "Pending",
+    downloadPdf: "Download PDF",
+    downloadingPdf: "Generating PDF...",
+    pdfSuccess: "PDF generated successfully.",
+    pdfNoData: "No results to export as PDF.",
+    pdfLibError: "Could not load the PDF library.",
+    reportTitle: "AISVS Checklist Report",
+    reportDateLabel: "Date",
+    reportFiltersLabel: "Applied filters",
+    reportSearchLabel: "Search",
+    reportChapterLabel: "Chapter",
+    reportLevelLabel: "Level",
+    reportSummaryLabel: "Summary",
+    reportImplementedLabel: "Implemented",
+    reportPendingLabel: "Pending",
+    reportStatusLabel: "Status",
+    reportDescriptionLabel: "Description",
+    implementedStatus: "Implemented",
+    pendingStatus: "Pending",
     themeDark: "Dark mode",
     themeLight: "Light mode",
     statusLoadingList: "Loading AISVS chapter list...",
@@ -129,6 +165,7 @@ const refs = {
   searchInput: document.getElementById("searchInput"),
   chapterLabel: document.getElementById("chapterLabel"),
   chapterSelect: document.getElementById("chapterSelect"),
+  downloadPdfBtn: document.getElementById("downloadPdfBtn"),
   statusText: document.getElementById("statusText"),
   tableBody: document.getElementById("controlsTableBody"),
   thLevel: document.getElementById("thLevel"),
@@ -205,7 +242,6 @@ function setStoredValue(key, value) {
   try {
     localStorage.setItem(key, value);
   } catch {
-    // Ignore storage errors in restrictive browser modes.
   }
 }
 
@@ -265,6 +301,7 @@ function updateUiLanguage() {
   refs.btnL1.textContent = t("levelLabel", 1);
   refs.btnL2.textContent = t("levelLabel", 2);
   refs.btnL3.textContent = t("levelLabel", 3);
+  refs.downloadPdfBtn.textContent = t("downloadPdf");
   setLabelText(refs.searchLabel, `${t("searchLabel")} `, refs.searchInput);
   refs.searchInput.placeholder = t("searchPlaceholder");
   setLabelText(refs.chapterLabel, `${t("chapterLabel")} `, refs.chapterSelect);
@@ -333,8 +370,6 @@ async function ensurePortugueseTranslations(controls) {
         if (translated) {
           state.translationCache[text] = translated;
         }
-      } catch {
-        // Fallback: keep original text when translation fails.
       } finally {
         state.inFlightTranslations.delete(text);
       }
@@ -406,6 +441,133 @@ function getDescription(control) {
     return control.descriptionEn;
   }
   return getCachedTranslation(control.descriptionEn) || control.descriptionEn;
+}
+
+function getControlStatusLabel(control) {
+  return state.checkedControls.has(control.id) ? t("implementedStatus") : t("pendingStatus");
+}
+
+function getCurrentFiltersLabel() {
+  const levelLabel = state.level === "all" ? t("allLabel") : t("levelLabel", state.level);
+  const chapterLabel =
+    state.chapter === "all"
+      ? t("allChapters")
+      : state.language === "en"
+        ? state.chapter
+        : CHAPTER_TRANSLATIONS[state.chapter] || state.chapter;
+  const searchLabel = state.search || "-";
+
+  return `${t("reportLevelLabel")}: ${levelLabel} | ${t("reportChapterLabel")}: ${chapterLabel} | ${t("reportSearchLabel")}: ${searchLabel}`;
+}
+
+function addPdfLine(doc, text, x, y, maxWidth, lineHeight, pageHeight, bottomMargin) {
+  const wrapped = doc.splitTextToSize(String(text), maxWidth);
+  let currentY = y;
+  for (const line of wrapped) {
+    if (currentY > pageHeight - bottomMargin) {
+      doc.addPage();
+      currentY = 40;
+    }
+    doc.text(line, x, currentY);
+    currentY += lineHeight;
+  }
+  return currentY;
+}
+
+function generatePdfReport() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    refs.statusText.textContent = t("pdfLibError");
+    return;
+  }
+
+  if (state.filtered.length === 0) {
+    refs.statusText.textContent = t("pdfNoData");
+    return;
+  }
+
+  refs.downloadPdfBtn.disabled = true;
+  refs.statusText.textContent = t("downloadingPdf");
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const marginX = 40;
+  const topStart = 44;
+  const contentWidth = doc.internal.pageSize.getWidth() - marginX * 2;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const lineHeight = 14;
+  const bottomMargin = 40;
+
+  const implemented = state.filtered.filter((control) => state.checkedControls.has(control.id)).length;
+  const pending = Math.max(state.filtered.length - implemented, 0);
+  const now = new Date();
+  const dateText = now.toLocaleString(state.language === "en" ? "en-US" : "pt-BR");
+
+  let y = topStart;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  y = addPdfLine(doc, t("reportTitle"), marginX, y, contentWidth, 18, pageHeight, bottomMargin);
+  y += 4;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+  y = addPdfLine(
+    doc,
+    `${t("reportDateLabel")}: ${dateText}`,
+    marginX,
+    y,
+    contentWidth,
+    lineHeight,
+    pageHeight,
+    bottomMargin,
+  );
+  y = addPdfLine(
+    doc,
+    `${t("reportFiltersLabel")}: ${getCurrentFiltersLabel()}`,
+    marginX,
+    y,
+    contentWidth,
+    lineHeight,
+    pageHeight,
+    bottomMargin,
+  );
+  y += 4;
+
+  doc.setFont("helvetica", "bold");
+  y = addPdfLine(doc, `${t("reportSummaryLabel")}:`, marginX, y, contentWidth, lineHeight, pageHeight, bottomMargin);
+  doc.setFont("helvetica", "normal");
+  y = addPdfLine(
+    doc,
+    `${t("totalLabel")}: ${state.filtered.length} | ${t("reportImplementedLabel")}: ${implemented} | ${t("reportPendingLabel")}: ${pending}`,
+    marginX,
+    y,
+    contentWidth,
+    lineHeight,
+    pageHeight,
+    bottomMargin,
+  );
+  y += 8;
+
+  for (let index = 0; index < state.filtered.length; index += 1) {
+    const control = state.filtered[index];
+    const header = `${index + 1}. ${control.id} | ${t("reportStatusLabel")}: ${getControlStatusLabel(control)} | ${t("reportLevelLabel")}: ${t("levelLabel", control.level)}`;
+    const chapter = `${t("reportChapterLabel")}: ${getChapterName(control)}`;
+    const section = `${t("thSection")}: ${getSectionName(control)}`;
+    const description = `${t("reportDescriptionLabel")}: ${getDescription(control)}`;
+
+    doc.setFont("helvetica", "bold");
+    y = addPdfLine(doc, header, marginX, y, contentWidth, lineHeight, pageHeight, bottomMargin);
+    doc.setFont("helvetica", "normal");
+    y = addPdfLine(doc, chapter, marginX, y, contentWidth, lineHeight, pageHeight, bottomMargin);
+    y = addPdfLine(doc, section, marginX, y, contentWidth, lineHeight, pageHeight, bottomMargin);
+    y = addPdfLine(doc, description, marginX, y, contentWidth, lineHeight, pageHeight, bottomMargin);
+    y += 8;
+  }
+
+  const dateStamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  doc.save(`aisvs-checklist-${dateStamp}.pdf`);
+  refs.downloadPdfBtn.disabled = false;
+  refs.statusText.textContent = t("pdfSuccess");
 }
 
 function updateStats(controls) {
@@ -553,6 +715,14 @@ function bindEvents() {
     updateStats(state.controls);
     populateChapterFilter(state.controls);
     applyFilters();
+  });
+
+  refs.downloadPdfBtn.addEventListener("click", () => {
+    try {
+      generatePdfReport();
+    } finally {
+      refs.downloadPdfBtn.disabled = false;
+    }
   });
 }
 
