@@ -3,6 +3,7 @@ const CONTROL_FILE_PATTERN = /^0x10-C\d{2}-.+\.md$/;
 const THEME_STORAGE_KEY = "aisvs-theme";
 const LANGUAGE_STORAGE_KEY = "aisvs-language";
 const TRANSLATION_CACHE_KEY = "aisvs-translation-cache-pt";
+const CHECKLIST_STORAGE_KEY = "aisvs-checklist-state";
 const TRANSLATION_WORKERS = 3;
 
 const CHAPTER_TRANSLATIONS = {
@@ -34,9 +35,6 @@ const I18N = {
   pt: {
     pageTitle: "Controles OWASP AISVS",
     languageLabel: "Idioma",
-    headerIntro:
-      'Explore os controles do padrão <a href="https://github.com/OWASP/AISVS" target="_blank" rel="noreferrer">AISVS 1.0</a> em uma experiência leve e sofisticada, com filtros por níveis de verificação (1, 2 e 3), busca e capítulos.',
-    headerNote: "Em PT, as seções e descrições são traduzidas automaticamente com cache local.",
     totalLabel: "Total",
     levelLabel: (level) => `Nível ${level}`,
     allLabel: "Todos",
@@ -45,9 +43,12 @@ const I18N = {
     chapterLabel: "Capítulo",
     allChapters: "Todos os capítulos",
     thLevel: "Nível",
+    thChecklist: "Checklist",
     thChapter: "Capítulo",
     thSection: "Seção",
     thControl: "Descrição do controle",
+    implementedLabel: "Implementados",
+    pendingLabel: "Pendentes",
     themeDark: "Modo escuro",
     themeLight: "Modo claro",
     statusLoadingList: "Carregando lista de capítulos do AISVS...",
@@ -56,16 +57,16 @@ const I18N = {
     emptyResults: "Nenhum controle encontrado para o filtro aplicado.",
     errorLoading: (message) => `Erro ao carregar dados: ${message}`,
     cellLevel: "Nível",
+    cellChecklist: "Checklist",
     cellChapter: "Capítulo",
     cellSection: "Seção",
     cellControl: "Descrição do controle",
+    markAsImplemented: "Marcar como implementado",
+    markAsPending: "Marcar como pendente",
   },
   en: {
     pageTitle: "OWASP AISVS Controls",
     languageLabel: "Language",
-    headerIntro:
-      'Explore <a href="https://github.com/OWASP/AISVS" target="_blank" rel="noreferrer">AISVS 1.0</a> controls in a lightweight and refined experience, with filters by verification levels (1, 2 and 3), search, and chapters.',
-    headerNote: "In EN, section and control descriptions are shown in their original language.",
     totalLabel: "Total",
     levelLabel: (level) => `Level ${level}`,
     allLabel: "All",
@@ -74,9 +75,12 @@ const I18N = {
     chapterLabel: "Chapter",
     allChapters: "All chapters",
     thLevel: "Level",
+    thChecklist: "Checklist",
     thChapter: "Chapter",
     thSection: "Section",
     thControl: "Control",
+    implementedLabel: "Implemented",
+    pendingLabel: "Pending",
     themeDark: "Dark mode",
     themeLight: "Light mode",
     statusLoadingList: "Loading AISVS chapter list...",
@@ -85,9 +89,12 @@ const I18N = {
     emptyResults: "No controls found for the selected filters.",
     errorLoading: (message) => `Error loading data: ${message}`,
     cellLevel: "Level",
+    cellChecklist: "Checklist",
     cellChapter: "Chapter",
     cellSection: "Section",
     cellControl: "Control",
+    markAsImplemented: "Mark as implemented",
+    markAsPending: "Mark as pending",
   },
 };
 
@@ -100,19 +107,20 @@ const state = {
   language: "pt",
   translationCache: {},
   inFlightTranslations: new Set(),
+  checkedControls: new Set(),
 };
 
 const refs = {
   root: document.documentElement,
   pageTitle: document.getElementById("pageTitle"),
   languageLabel: document.getElementById("languageLabel"),
-  languageSelect: document.getElementById("languageSelect"),
-  headerIntro: document.getElementById("headerIntro"),
-  headerNote: document.getElementById("headerNote"),
+  languageSelect: document.getElementById("languageSelect"), 
   totalLabel: document.getElementById("totalLabel"),
   level1Label: document.getElementById("level1Label"),
   level2Label: document.getElementById("level2Label"),
   level3Label: document.getElementById("level3Label"),
+  implementedLabel: document.getElementById("implementedLabel"),
+  pendingLabel: document.getElementById("pendingLabel"),
   btnAll: document.getElementById("btnAll"),
   btnL1: document.getElementById("btnL1"),
   btnL2: document.getElementById("btnL2"),
@@ -124,6 +132,7 @@ const refs = {
   statusText: document.getElementById("statusText"),
   tableBody: document.getElementById("controlsTableBody"),
   thLevel: document.getElementById("thLevel"),
+  thChecklist: document.getElementById("thChecklist"),
   thChapter: document.getElementById("thChapter"),
   thSection: document.getElementById("thSection"),
   thControl: document.getElementById("thControl"),
@@ -133,6 +142,8 @@ const refs = {
   l1Count: document.getElementById("l1Count"),
   l2Count: document.getElementById("l2Count"),
   l3Count: document.getElementById("l3Count"),
+  implementedCount: document.getElementById("implementedCount"),
+  pendingCount: document.getElementById("pendingCount"),
 };
 
 function t(key, ...args) {
@@ -153,6 +164,29 @@ function loadTranslationCache() {
   } catch {
     state.translationCache = {};
   }
+}
+
+function loadChecklistState() {
+  const raw = getStoredValue(CHECKLIST_STORAGE_KEY);
+  if (!raw) {
+    state.checkedControls = new Set();
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      state.checkedControls = new Set();
+      return;
+    }
+    state.checkedControls = new Set(parsed.filter((id) => typeof id === "string"));
+  } catch {
+    state.checkedControls = new Set();
+  }
+}
+
+function persistChecklistState() {
+  setStoredValue(CHECKLIST_STORAGE_KEY, JSON.stringify([...state.checkedControls]));
 }
 
 function persistTranslationCache() {
@@ -221,12 +255,12 @@ function setupThemeToggle() {
 function updateUiLanguage() {
   refs.pageTitle.textContent = t("pageTitle");
   refs.languageLabel.textContent = t("languageLabel");
-  refs.headerIntro.innerHTML = t("headerIntro");
-  refs.headerNote.textContent = t("headerNote");
   refs.totalLabel.textContent = t("totalLabel");
   refs.level1Label.textContent = t("levelLabel", 1);
   refs.level2Label.textContent = t("levelLabel", 2);
   refs.level3Label.textContent = t("levelLabel", 3);
+  refs.implementedLabel.textContent = t("implementedLabel");
+  refs.pendingLabel.textContent = t("pendingLabel");
   refs.btnAll.textContent = t("allLabel");
   refs.btnL1.textContent = t("levelLabel", 1);
   refs.btnL2.textContent = t("levelLabel", 2);
@@ -235,6 +269,7 @@ function updateUiLanguage() {
   refs.searchInput.placeholder = t("searchPlaceholder");
   setLabelText(refs.chapterLabel, `${t("chapterLabel")} `, refs.chapterSelect);
   refs.thLevel.textContent = t("thLevel");
+  refs.thChecklist.textContent = t("thChecklist");
   refs.thChapter.textContent = t("thChapter");
   refs.thSection.textContent = t("thSection");
   refs.thControl.textContent = t("thControl");
@@ -375,10 +410,15 @@ function getDescription(control) {
 
 function updateStats(controls) {
   const formatter = getNumberFormatter();
+  const implemented = controls.filter((c) => state.checkedControls.has(c.id)).length;
+  const pending = Math.max(controls.length - implemented, 0);
+
   refs.totalCount.textContent = formatter.format(controls.length);
   refs.l1Count.textContent = formatter.format(controls.filter((c) => c.level === "1").length);
   refs.l2Count.textContent = formatter.format(controls.filter((c) => c.level === "2").length);
   refs.l3Count.textContent = formatter.format(controls.filter((c) => c.level === "3").length);
+  refs.implementedCount.textContent = formatter.format(implemented);
+  refs.pendingCount.textContent = formatter.format(pending);
 }
 
 function populateChapterFilter(controls) {
@@ -406,7 +446,7 @@ function renderTable(controls) {
   if (controls.length === 0) {
     refs.tableBody.innerHTML = `
       <tr>
-        <td colspan="5">${t("emptyResults")}</td>
+        <td colspan="6">${t("emptyResults")}</td>
       </tr>
     `;
     return;
@@ -415,7 +455,17 @@ function renderTable(controls) {
   refs.tableBody.innerHTML = controls
     .map(
       (control) => `
-      <tr>
+      <tr class="${state.checkedControls.has(control.id) ? "is-checked" : ""}">
+        <td class="check-cell" data-label="${t("cellChecklist")}">
+          <input
+            class="check-input"
+            type="checkbox"
+            data-control-id="${control.id}"
+            ${state.checkedControls.has(control.id) ? "checked" : ""}
+            aria-label="${state.checkedControls.has(control.id) ? t("markAsPending") : t("markAsImplemented")}"
+            title="${state.checkedControls.has(control.id) ? t("markAsPending") : t("markAsImplemented")}"
+          />
+        </td>
         <td data-label="ID"><code>${control.id}</code></td>
         <td data-label="${t("cellLevel")}"><span class="tag level-${control.level}">${t("levelLabel", control.level)}</span></td>
         <td data-label="${t("cellChapter")}">${getChapterName(control)}</td>
@@ -478,6 +528,24 @@ function bindEvents() {
     applyFilters();
   });
 
+  refs.tableBody.addEventListener("change", (event) => {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    if (event.target.type !== "checkbox") return;
+
+    const controlId = event.target.dataset.controlId;
+    if (!controlId) return;
+
+    if (event.target.checked) {
+      state.checkedControls.add(controlId);
+    } else {
+      state.checkedControls.delete(controlId);
+    }
+
+    persistChecklistState();
+    updateStats(state.controls);
+    renderTable(state.filtered);
+  });
+
   refs.languageSelect.addEventListener("change", (event) => {
     state.language = event.target.value === "en" ? "en" : "pt";
     setStoredValue(LANGUAGE_STORAGE_KEY, state.language);
@@ -516,6 +584,7 @@ async function loadControls() {
 async function init() {
   setupLanguage();
   loadTranslationCache();
+  loadChecklistState();
   updateUiLanguage();
   setupThemeToggle();
   bindEvents();

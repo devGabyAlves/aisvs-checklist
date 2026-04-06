@@ -20,15 +20,6 @@
             <button id="themeToggle" type="button" aria-label="Alternar tema">Modo escuro</button>
           </div>
         </div>
-        <p id="headerIntro">
-          Explore os controles do padrão
-          <a href="https://github.com/OWASP/AISVS" target="_blank" rel="noreferrer">AISVS 1.0</a>
-          em uma experiência leve e sofisticada, com filtros por níveis de verificação (1, 2 e
-          3), busca e capítulos.
-        </p>
-        <p class="header-note" id="headerNote">
-          Os textos dos controles são exibidos no idioma oficial do padrão (inglês).
-        </p>
       </header>
 
       <section class="stats" id="stats">
@@ -47,6 +38,14 @@
         <article class="stat-card">
           <h2 id="level3Label">Nível 3</h2>
           <strong id="l3Count">-</strong>
+        </article>
+        <article class="stat-card">
+          <h2 id="implementedLabel">Implementados</h2>
+          <strong id="implementedCount">-</strong>
+        </article>
+        <article class="stat-card">
+          <h2 id="pendingLabel">Pendentes</h2>
+          <strong id="pendingCount">-</strong>
         </article>
       </section>
 
@@ -83,6 +82,7 @@
         <table>
           <thead>
             <tr>
+              <th id="thChecklist">Checklist</th>
               <th>ID</th>
               <th id="thLevel">Nível</th>
               <th id="thChapter">Capítulo</th>

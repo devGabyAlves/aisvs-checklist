@@ -232,6 +232,21 @@ td {
   vertical-align: top;
 }
 
+.check-cell {
+  width: 84px;
+}
+
+.check-input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+tr.is-checked td {
+  opacity: 0.8;
+}
+
 th {
   background: var(--surface-soft);
   color: var(--muted);
@@ -391,5 +406,9 @@ code {
     text-transform: uppercase;
     color: var(--muted);
     margin-bottom: 0.2rem;
+  }
+
+  .check-cell {
+    width: 100%;
   }
 }
