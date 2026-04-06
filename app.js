@@ -474,6 +474,60 @@ function addPdfLine(doc, text, x, y, maxWidth, lineHeight, pageHeight, bottomMar
   return currentY;
 }
 
+function ensurePdfSpace(doc, currentY, neededHeight, topStart, bottomMargin) {
+  const pageHeight = doc.internal.pageSize.getHeight();
+  if (currentY + neededHeight <= pageHeight - bottomMargin) {
+    return currentY;
+  }
+  doc.addPage();
+  return topStart;
+}
+
+function drawPdfHeader(doc, title, subtitle) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFillColor(43, 108, 176);
+  doc.rect(0, 0, pageWidth, 78, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text(title, 40, 34);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(subtitle, 40, 52);
+
+  doc.setDrawColor(221, 229, 240);
+  doc.setLineWidth(1);
+  doc.line(40, 88, pageWidth - 40, 88);
+  doc.setTextColor(32, 41, 64);
+}
+
+function drawSummaryCard(doc, x, y, w, h, label, value, bgRgb) {
+  doc.setFillColor(bgRgb[0], bgRgb[1], bgRgb[2]);
+  doc.setDrawColor(220, 228, 240);
+  doc.roundedRect(x, y, w, h, 8, 8, "FD");
+
+  doc.setTextColor(72, 84, 111);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text(label.toUpperCase(), x + 10, y + 16);
+
+  doc.setTextColor(31, 41, 64);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text(String(value), x + 10, y + 35);
+}
+
+function drawWrappedLines(doc, lines, x, y, lineHeight) {
+  let currentY = y;
+  for (const line of lines) {
+    doc.text(line, x, currentY);
+    currentY += lineHeight;
+  }
+  return currentY;
+}
+
 function generatePdfReport() {
   if (!window.jspdf || !window.jspdf.jsPDF) {
     refs.statusText.textContent = t("pdfLibError");
@@ -488,86 +542,130 @@ function generatePdfReport() {
   refs.downloadPdfBtn.disabled = true;
   refs.statusText.textContent = t("downloadingPdf");
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
-  const marginX = 40;
-  const topStart = 44;
-  const contentWidth = doc.internal.pageSize.getWidth() - marginX * 2;
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const lineHeight = 14;
-  const bottomMargin = 40;
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const marginX = 40;
+    const topStart = 104;
+    const contentWidth = doc.internal.pageSize.getWidth() - marginX * 2;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const lineHeight = 14;
+    const bottomMargin = 40;
 
-  const implemented = state.filtered.filter((control) => state.checkedControls.has(control.id)).length;
-  const pending = Math.max(state.filtered.length - implemented, 0);
-  const now = new Date();
-  const dateText = now.toLocaleString(state.language === "en" ? "en-US" : "pt-BR");
+    const implemented = state.filtered.filter((control) => state.checkedControls.has(control.id)).length;
+    const pending = Math.max(state.filtered.length - implemented, 0);
+    const progress = state.filtered.length > 0 ? Math.round((implemented / state.filtered.length) * 100) : 0;
+    const now = new Date();
+    const dateText = now.toLocaleString(state.language === "en" ? "en-US" : "pt-BR");
 
-  let y = topStart;
+    drawPdfHeader(doc, t("reportTitle"), `${t("reportDateLabel")}: ${dateText}`);
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  y = addPdfLine(doc, t("reportTitle"), marginX, y, contentWidth, 18, pageHeight, bottomMargin);
-  y += 4;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  y = addPdfLine(
-    doc,
-    `${t("reportDateLabel")}: ${dateText}`,
-    marginX,
-    y,
-    contentWidth,
-    lineHeight,
-    pageHeight,
-    bottomMargin,
-  );
-  y = addPdfLine(
-    doc,
-    `${t("reportFiltersLabel")}: ${getCurrentFiltersLabel()}`,
-    marginX,
-    y,
-    contentWidth,
-    lineHeight,
-    pageHeight,
-    bottomMargin,
-  );
-  y += 4;
-
-  doc.setFont("helvetica", "bold");
-  y = addPdfLine(doc, `${t("reportSummaryLabel")}:`, marginX, y, contentWidth, lineHeight, pageHeight, bottomMargin);
-  doc.setFont("helvetica", "normal");
-  y = addPdfLine(
-    doc,
-    `${t("totalLabel")}: ${state.filtered.length} | ${t("reportImplementedLabel")}: ${implemented} | ${t("reportPendingLabel")}: ${pending}`,
-    marginX,
-    y,
-    contentWidth,
-    lineHeight,
-    pageHeight,
-    bottomMargin,
-  );
-  y += 8;
-
-  for (let index = 0; index < state.filtered.length; index += 1) {
-    const control = state.filtered[index];
-    const header = `${index + 1}. ${control.id} | ${t("reportStatusLabel")}: ${getControlStatusLabel(control)} | ${t("reportLevelLabel")}: ${t("levelLabel", control.level)}`;
-    const chapter = `${t("reportChapterLabel")}: ${getChapterName(control)}`;
-    const section = `${t("thSection")}: ${getSectionName(control)}`;
-    const description = `${t("reportDescriptionLabel")}: ${getDescription(control)}`;
-
-    doc.setFont("helvetica", "bold");
-    y = addPdfLine(doc, header, marginX, y, contentWidth, lineHeight, pageHeight, bottomMargin);
+    let y = topStart;
+    doc.setTextColor(72, 84, 111);
     doc.setFont("helvetica", "normal");
-    y = addPdfLine(doc, chapter, marginX, y, contentWidth, lineHeight, pageHeight, bottomMargin);
-    y = addPdfLine(doc, section, marginX, y, contentWidth, lineHeight, pageHeight, bottomMargin);
-    y = addPdfLine(doc, description, marginX, y, contentWidth, lineHeight, pageHeight, bottomMargin);
-    y += 8;
-  }
+    doc.setFontSize(10);
+    y = addPdfLine(doc, `${t("reportFiltersLabel")}: ${getCurrentFiltersLabel()}`, marginX, y, contentWidth, lineHeight, pageHeight, bottomMargin);
+    y += 10;
 
-  const dateStamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  doc.save(`aisvs-checklist-${dateStamp}.pdf`);
-  refs.downloadPdfBtn.disabled = false;
-  refs.statusText.textContent = t("pdfSuccess");
+    const gap = 12;
+    const cardWidth = (contentWidth - gap * 2) / 3;
+    const cardHeight = 44;
+    drawSummaryCard(doc, marginX, y, cardWidth, cardHeight, t("totalLabel"), state.filtered.length, [244, 247, 255]);
+    drawSummaryCard(doc, marginX + cardWidth + gap, y, cardWidth, cardHeight, t("reportImplementedLabel"), implemented, [236, 253, 245]);
+    drawSummaryCard(doc, marginX + (cardWidth + gap) * 2, y, cardWidth, cardHeight, t("reportPendingLabel"), pending, [255, 245, 245]);
+    y += cardHeight + 12;
+
+    doc.setFillColor(239, 246, 255);
+    doc.roundedRect(marginX, y, contentWidth, 24, 6, 6, "F");
+    doc.setTextColor(29, 78, 216);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(`${t("reportSummaryLabel")}: ${progress}%`, marginX + 10, y + 16);
+    y += 34;
+
+    for (let index = 0; index < state.filtered.length; index += 1) {
+      const control = state.filtered[index];
+      const statusLabel = getControlStatusLabel(control);
+      const implementedControl = state.checkedControls.has(control.id);
+      const textX = marginX + 10;
+      const textWidth = contentWidth - 20;
+      const insideTopPadding = 16;
+      const insideBottomPadding = 12;
+      const sectionGap = 6;
+      const titleLineHeight = 13;
+      const metaLineHeight = 12;
+      const descLineHeight = 12;
+
+      const titleLines = doc.splitTextToSize(`${index + 1}. ${control.id}`, textWidth);
+      const metaLines = doc.splitTextToSize(
+        `${t("reportStatusLabel")}: ${statusLabel}  |  ${t("reportLevelLabel")}: ${t("levelLabel", control.level)}`,
+        textWidth,
+      );
+      const chapterLines = doc.splitTextToSize(`${t("reportChapterLabel")}: ${getChapterName(control)}`, textWidth);
+      const sectionLines = doc.splitTextToSize(`${t("thSection")}: ${getSectionName(control)}`, textWidth);
+      const descriptionLines = doc.splitTextToSize(
+        `${t("reportDescriptionLabel")}: ${getDescription(control)}`,
+        textWidth,
+      );
+
+      const bodyHeight =
+        titleLines.length * titleLineHeight +
+        metaLines.length * metaLineHeight +
+        chapterLines.length * metaLineHeight +
+        sectionLines.length * metaLineHeight +
+        descriptionLines.length * descLineHeight +
+        sectionGap * 4;
+      const cardHeight = Math.max(90, insideTopPadding + bodyHeight + insideBottomPadding);
+
+      y = ensurePdfSpace(doc, y, cardHeight + 8, topStart, bottomMargin);
+
+      doc.setFillColor(implementedControl ? 236 : 255, implementedControl ? 253 : 245, implementedControl ? 245 : 245);
+      doc.setDrawColor(221, 229, 240);
+      doc.roundedRect(marginX, y, contentWidth, cardHeight, 8, 8, "FD");
+
+      let cursorY = y + insideTopPadding;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(31, 41, 64);
+      cursorY = drawWrappedLines(doc, titleLines, textX, cursorY, titleLineHeight);
+      cursorY += sectionGap;
+
+      doc.setTextColor(75, 85, 99);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      cursorY = drawWrappedLines(doc, metaLines, textX, cursorY, metaLineHeight);
+      cursorY += sectionGap;
+      doc.setTextColor(55, 65, 81);
+      cursorY = drawWrappedLines(doc, chapterLines, textX, cursorY, metaLineHeight);
+      cursorY += sectionGap;
+      cursorY = drawWrappedLines(doc, sectionLines, textX, cursorY, metaLineHeight);
+      cursorY += sectionGap;
+
+      doc.setTextColor(31, 41, 64);
+      doc.setFontSize(9.5);
+      drawWrappedLines(doc, descriptionLines, textX, cursorY, descLineHeight);
+
+      y += cardHeight + 12;
+    }
+
+    const totalPages = doc.getNumberOfPages();
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(107, 114, 128);
+    for (let i = 1; i <= totalPages; i += 1) {
+      doc.setPage(i);
+      doc.text(`AISVS Checklist - ${i}/${totalPages}`, marginX, pageHeight - 18);
+    }
+
+    const dateStamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    doc.save(`aisvs-checklist-${dateStamp}.pdf`);
+    refs.statusText.textContent = t("pdfSuccess");
+  } catch (error) {
+    refs.statusText.textContent = t("errorLoading", error.message);
+  } finally {
+    refs.downloadPdfBtn.disabled = false;
+  }
 }
 
 function updateStats(controls) {
